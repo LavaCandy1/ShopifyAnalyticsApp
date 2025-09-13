@@ -1,4 +1,16 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React from "react";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 // --- Helper & UI Components ---
 
@@ -88,31 +100,13 @@ const Icons = {
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   ),
-  Package: (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m7.5 4.27 9 5.15" />
-      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-      <path d="m3.3 7 8.7 5 8.7-5" />
-      <path d="M12 22V12" />
-    </svg>
-  ),
 };
 
 // --- Main Application Components ---
 
 function LoginPage({ onLogin, isLoading, error }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -183,75 +177,80 @@ function LoginPage({ onLogin, isLoading, error }) {
 }
 
 function AnalyticsDashboard({ store, onBack, authUser }) {
-  const {
-    LineChart,
-    Line,
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    Legend,
-    ResponsiveContainer,
-  } = window.Recharts || {};
-  const [analytics, setAnalytics] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [analytics, setAnalytics] = React.useState(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
 
-  useEffect(() => {
+  // State for date range filters
+  const [startDate, setStartDate] = React.useState("2023-01-01");
+  const [endDate, setEndDate] = React.useState("2023-06-30");
+
+  React.useEffect(() => {
     const loadAnalytics = async () => {
-      // Mocking analytics fetch for now
-      console.log(
-        `Fetching analytics for store ${store.domain} for user ${authUser.email}`
-      );
       setIsLoading(true);
       setError(null);
-      await new Promise((res) => setTimeout(res, 1000));
-      setAnalytics({
-        totalRevenue: 125430.55,
-        totalOrders: 1840,
-        totalCustomers: 987,
-        totalProducts: 215,
-        salesOverTime: [
-          { name: "Jan", sales: 9000 },
-          { name: "Feb", sales: 11000 },
-          { name: "Mar", sales: 15000 },
-          { name: "Apr", sales: 13500 },
-          { name: "May", sales: 18000 },
-          { name: "Jun", sales: 21000 },
-        ],
-        topProducts: [
-          { name: "Quantum T-Shirt", sales: 250 },
-          { name: "Nebula Hoodie", sales: 180 },
-          { name: "Galaxy Sneakers", sales: 150 },
-          { name: "Stardust Mug", sales: 120 },
-          { name: "Cosmic Cap", sales: 95 },
-        ],
-      });
-      setIsLoading(false);
+      try {
+        // In a real app, you would fetch this data from your backend
+        console.log(
+          `Fetching analytics for store ${store.domain} from ${startDate} to ${endDate}`
+        );
+        await new Promise((res) => setTimeout(res, 1000)); // Simulate network delay
+
+        // NEW MOCK DATA matching your requirements
+        setAnalytics({
+          totalRevenue: 86500.0,
+          totalOrders: 1230,
+          totalCustomers: 742,
+          // Full data for orders by date
+          ordersByDate: [
+            { date: "2023-01-15", orders: 150 },
+            { date: "2023-02-10", orders: 180 },
+            { date: "2023-03-05", orders: 210 },
+            { date: "2023-04-20", orders: 190 },
+            { date: "2023-05-18", orders: 250 },
+            { date: "2023-06-22", orders: 220 },
+          ],
+          // Full data for top customers
+          topCustomers: [
+            { name: "Alice Johnson", spend: 2540.5 },
+            { name: "Bob Williams", spend: 2180.75 },
+            { name: "Charlie Brown", spend: 1990.0 },
+            { name: "Diana Miller", spend: 1850.25 },
+            { name: "Ethan Davis", spend: 1720.0 },
+          ],
+        });
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadAnalytics();
-  }, [store, authUser]);
+  }, [store, authUser, startDate, endDate]); // Re-fetch if dates change
 
-  const formattedRevenue = useMemo(() => {
-    if (!analytics) return "$0.00";
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(analytics.totalRevenue);
-  }, [analytics]);
+  // Memoized calculation to filter orders data based on the date range
+  const filteredOrdersData = React.useMemo(() => {
+    if (!analytics) return [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return analytics.ordersByDate.filter((order) => {
+      const orderDate = new Date(order.date);
+      return orderDate >= start && orderDate <= end;
+    });
+  }, [analytics, startDate, endDate]);
 
-  if (isLoading || !window.Recharts) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="text-xl font-semibold">Loading Dashboard...</div>
       </div>
     );
   }
-
   if (error) {
     return <div className="text-center text-red-500">{error}</div>;
+  }
+  if (!analytics) {
+    return <div className="text-center">Could not load analytics data.</div>;
   }
 
   return (
@@ -283,10 +282,13 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
         {store.domain}
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <StatCard
           title="Total Revenue"
-          value={formattedRevenue}
+          value={new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+          }).format(analytics.totalRevenue)}
           icon={Icons.Dollar}
         />
         <StatCard
@@ -299,31 +301,44 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
           value={analytics.totalCustomers.toLocaleString()}
           icon={Icons.Users}
         />
-        <StatCard
-          title="Total Products"
-          value={analytics.totalProducts.toLocaleString()}
-          icon={Icons.Package}
-        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-xl font-bold text-gray-800 mb-4">
-            Sales Over Time
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Orders by Date</h3>
+            <div className="flex items-center space-x-2 text-sm">
+              <label htmlFor="start-date">From:</label>
+              <input
+                type="date"
+                id="start-date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="border rounded px-2 py-1"
+              />
+              <label htmlFor="end-date">To:</label>
+              <input
+                type="date"
+                id="end-date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="border rounded px-2 py-1"
+              />
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart
-              data={analytics.salesOverTime}
+              data={filteredOrdersData}
               margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
+              <XAxis dataKey="date" />
               <YAxis />
               <Tooltip />
               <Legend />
               <Line
                 type="monotone"
-                dataKey="sales"
+                dataKey="orders"
                 stroke="#4f46e5"
                 strokeWidth={2}
                 activeDot={{ r: 8 }}
@@ -333,20 +348,27 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
         </div>
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4">
-            Top 5 Selling Products
+            Top 5 Customers by Spend
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart
-              data={analytics.topProducts}
+              data={analytics.topCustomers}
               layout="vertical"
               margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
+              <XAxis type="number" dataKey="spend" />
               <YAxis type="category" dataKey="name" width={100} />
-              <Tooltip />
+              <Tooltip
+                formatter={(value) =>
+                  new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  }).format(value)
+                }
+              />
               <Legend />
-              <Bar dataKey="sales" fill="#6366f1" />
+              <Bar dataKey="spend" name="Total Spend" fill="#6366f1" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -356,16 +378,15 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
 }
 
 function DashboardPage({ authUser }) {
-  const [view, setView] = useState("list");
-  const [stores, setStores] = useState([]);
-  const [selectedStore, setSelectedStore] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [view, setView] = React.useState("list");
+  const [stores, setStores] = React.useState([]);
+  const [selectedStore, setSelectedStore] = React.useState(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const loadStores = async () => {
       if (!authUser) return;
-
       setIsLoading(true);
       setError(null);
       try {
@@ -471,9 +492,9 @@ function DashboardPage({ authUser }) {
 // --- App Container ---
 
 export default function App() {
-  const [authUser, setAuthUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [authUser, setAuthUser] = React.useState(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
 
   const handleLogin = async (email, password) => {
     setIsLoading(true);
@@ -495,7 +516,9 @@ export default function App() {
         throw new Error("Invalid email or password.");
       }
       if (!response.ok) {
-        throw new Error("An error occurred. Please try again.");
+        throw new Error(
+          `Network response was not ok, status: ${response.status}`
+        );
       }
 
       setAuthUser({ email, password });
