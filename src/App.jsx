@@ -1,0 +1,516 @@
+import React, { useState, useEffect, useMemo } from "react";
+
+// --- Helper & UI Components ---
+
+const Spinner = () => (
+  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+);
+
+const StatCard = ({ title, value, icon }) => (
+  <div className="bg-white rounded-xl shadow-lg p-6 flex items-center space-x-4 transition-transform duration-300 hover:scale-105">
+    <div className="bg-indigo-100 text-indigo-600 rounded-full p-3">{icon}</div>
+    <div>
+      <p className="text-sm text-gray-500 font-medium">{title}</p>
+      <p className="text-2xl font-bold text-gray-800">{value}</p>
+    </div>
+  </div>
+);
+
+const Icons = {
+  Store: (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m21.21 15.89-1.21-6.05L18.42 5h-12.8l-1.58 4.84-1.21 6.05A1 1 0 0 0 4 17h16a1 1 0 0 0 1.21-1.11Z" />
+      <path d="M6 5v.01" />
+      <path d="M6 8v.01" />
+      <path d="M18 5v.01" />
+      <path d="M18 8v.01" />
+      <path d="M12 17a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z" />
+    </svg>
+  ),
+  Dollar: (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="12" x2="12" y1="2" y2="22" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  ),
+  ShoppingCart: (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="8" cy="21" r="1" />
+      <circle cx="19" cy="21" r="1" />
+      <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+    </svg>
+  ),
+  Users: (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
+  Package: (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m7.5 4.27 9 5.15" />
+      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+      <path d="m3.3 7 8.7 5 8.7-5" />
+      <path d="M12 22V12" />
+    </svg>
+  ),
+};
+
+// --- Main Application Components ---
+
+function LoginPage({ onLogin, isLoading, error }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onLogin(email, password);
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-xl shadow-lg">
+        <div className="text-center">
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+            Sign in to your account
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            to access your Shopify Analytics Hub
+          </p>
+        </div>
+        {error && (
+          <div
+            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <input
+                id="email-address"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+              />
+            </div>
+            <div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+              />
+            </div>
+          </div>
+          <div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
+            >
+              {isLoading ? <Spinner /> : "Sign in"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function AnalyticsDashboard({ store, onBack, authUser }) {
+  const {
+    LineChart,
+    Line,
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+  } = window.Recharts || {};
+  const [analytics, setAnalytics] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      // Mocking analytics fetch for now
+      console.log(
+        `Fetching analytics for store ${store.domain} for user ${authUser.email}`
+      );
+      setIsLoading(true);
+      setError(null);
+      await new Promise((res) => setTimeout(res, 1000));
+      setAnalytics({
+        totalRevenue: 125430.55,
+        totalOrders: 1840,
+        totalCustomers: 987,
+        totalProducts: 215,
+        salesOverTime: [
+          { name: "Jan", sales: 9000 },
+          { name: "Feb", sales: 11000 },
+          { name: "Mar", sales: 15000 },
+          { name: "Apr", sales: 13500 },
+          { name: "May", sales: 18000 },
+          { name: "Jun", sales: 21000 },
+        ],
+        topProducts: [
+          { name: "Quantum T-Shirt", sales: 250 },
+          { name: "Nebula Hoodie", sales: 180 },
+          { name: "Galaxy Sneakers", sales: 150 },
+          { name: "Stardust Mug", sales: 120 },
+          { name: "Cosmic Cap", sales: 95 },
+        ],
+      });
+      setIsLoading(false);
+    };
+    loadAnalytics();
+  }, [store, authUser]);
+
+  const formattedRevenue = useMemo(() => {
+    if (!analytics) return "$0.00";
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(analytics.totalRevenue);
+  }, [analytics]);
+
+  if (isLoading || !window.Recharts) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-xl font-semibold">Loading Dashboard...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500">{error}</div>;
+  }
+
+  return (
+    <div className="p-4 sm:p-6 lg:p-8">
+      <button
+        onClick={onBack}
+        className="mb-6 bg-white text-gray-700 font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-gray-50 transition flex items-center space-x-2"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+        <span>Back to Stores</span>
+      </button>
+
+      <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
+        Analytics Dashboard
+      </h1>
+      <p className="text-lg text-indigo-700 font-semibold mb-8">
+        {store.domain}
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard
+          title="Total Revenue"
+          value={formattedRevenue}
+          icon={Icons.Dollar}
+        />
+        <StatCard
+          title="Total Orders"
+          value={analytics.totalOrders.toLocaleString()}
+          icon={Icons.ShoppingCart}
+        />
+        <StatCard
+          title="Total Customers"
+          value={analytics.totalCustomers.toLocaleString()}
+          icon={Icons.Users}
+        />
+        <StatCard
+          title="Total Products"
+          value={analytics.totalProducts.toLocaleString()}
+          icon={Icons.Package}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">
+            Sales Over Time
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart
+              data={analytics.salesOverTime}
+              margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="sales"
+                stroke="#4f46e5"
+                strokeWidth={2}
+                activeDot={{ r: 8 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">
+            Top 5 Selling Products
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={analytics.topProducts}
+              layout="vertical"
+              margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis type="category" dataKey="name" width={100} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="sales" fill="#6366f1" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardPage({ authUser }) {
+  const [view, setView] = useState("list");
+  const [stores, setStores] = useState([]);
+  const [selectedStore, setSelectedStore] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const loadStores = async () => {
+      if (!authUser) return;
+
+      setIsLoading(true);
+      setError(null);
+      try {
+        const headers = new Headers();
+        const credentials = btoa(`${authUser.email}:${authUser.password}`);
+        headers.append("Authorization", `Basic ${credentials}`);
+
+        const response = await fetch(
+          `http://localhost:8000/api/user/${authUser.email}/stores`,
+          {
+            method: "GET",
+            headers: headers,
+          }
+        );
+
+        if (response.status === 401) throw new Error("Authentication failed.");
+        if (!response.ok) throw new Error("Failed to fetch stores.");
+
+        const fetchedStores = await response.json();
+        setStores(fetchedStores);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadStores();
+  }, [authUser]);
+
+  const handleSelectStore = (store) => {
+    setSelectedStore(store);
+    setView("dashboard");
+  };
+
+  const handleBackToList = () => {
+    setSelectedStore(null);
+    setView("list");
+  };
+
+  return (
+    <div className="bg-gray-50 min-h-screen font-sans">
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="text-indigo-600">{Icons.Store}</div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Shopify Analytics Hub
+            </h1>
+          </div>
+          <div className="text-sm text-gray-500">
+            Signed in as{" "}
+            <span className="font-medium text-gray-800">{authUser.email}</span>
+          </div>
+        </div>
+      </header>
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        {view === "list" && (
+          <div className="px-4">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              Connected Stores
+            </h2>
+            {isLoading && <p>Loading stores...</p>}
+            {error && (
+              <div className="bg-red-100 text-red-700 px-4 py-2 rounded">
+                {error}
+              </div>
+            )}
+            <div className="space-y-4">
+              {stores.map((store) => (
+                <div
+                  key={store.domain}
+                  className="bg-white rounded-xl shadow p-5 flex items-center justify-between"
+                >
+                  <div>
+                    <p className="font-bold text-gray-900">
+                      {store.storeName || "Unnamed Store"}
+                    </p>
+                    <p className="text-sm text-gray-500">{store.domain}</p>
+                  </div>
+                  <button
+                    onClick={() => handleSelectStore(store)}
+                    className="bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600 transition"
+                  >
+                    View Analytics
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {view === "dashboard" && selectedStore && (
+          <AnalyticsDashboard
+            store={selectedStore}
+            onBack={handleBackToList}
+            authUser={authUser}
+          />
+        )}
+      </main>
+    </div>
+  );
+}
+
+// --- App Container ---
+
+export default function App() {
+  const [authUser, setAuthUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleLogin = async (email, password) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const headers = new Headers();
+      const credentials = btoa(`${email}:${password}`);
+      headers.append("Authorization", `Basic ${credentials}`);
+
+      const response = await fetch(
+        `http://localhost:8000/api/user/${email}/stores`,
+        {
+          method: "GET",
+          headers: headers,
+        }
+      );
+
+      if (response.status === 401) {
+        throw new Error("Invalid email or password.");
+      }
+      if (!response.ok) {
+        throw new Error("An error occurred. Please try again.");
+      }
+
+      setAuthUser({ email, password });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!authUser) {
+    return (
+      <LoginPage onLogin={handleLogin} isLoading={isLoading} error={error} />
+    );
+  }
+
+  return <DashboardPage authUser={authUser} />;
+}
