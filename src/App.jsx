@@ -100,6 +100,24 @@ const Icons = {
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   ),
+  Warning: (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="text-yellow-500"
+    >
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+    </svg>
+  ),
 };
 
 // --- Main Application Components ---
@@ -181,63 +199,69 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
 
-  // State for date range filters
-  const [startDate, setStartDate] = React.useState("2023-01-01");
-  const [endDate, setEndDate] = React.useState("2023-06-30");
+  const getFirstDayOfMonth = () => {
+    const date = new Date();
+    return new Date(date.getFullYear(), date.getMonth(), 1)
+      .toISOString()
+      .split("T")[0];
+  };
+
+  const getToday = () => {
+    return new Date().toISOString().split("T")[0];
+  };
+
+  const [startDate, setStartDate] = React.useState(getFirstDayOfMonth());
+  const [endDate, setEndDate] = React.useState(getToday());
 
   React.useEffect(() => {
     const loadAnalytics = async () => {
+      if (!store || !store.storeId) {
+        setError("Store data is missing. Cannot fetch analytics.");
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
       try {
-        // In a real app, you would fetch this data from your backend
-        console.log(
-          `Fetching analytics for store ${store.domain} from ${startDate} to ${endDate}`
-        );
-        await new Promise((res) => setTimeout(res, 1000)); // Simulate network delay
+        const headers = new Headers();
+        const credentials = btoa(`${authUser.email}:${authUser.password}`);
+        headers.append("Authorization", `Basic ${credentials}`);
 
-        // NEW MOCK DATA matching your requirements
-        setAnalytics({
-          totalRevenue: 86500.0,
-          totalOrders: 1230,
-          totalCustomers: 742,
-          // Full data for orders by date
-          ordersByDate: [
-            { date: "2023-01-15", orders: 150 },
-            { date: "2023-02-10", orders: 180 },
-            { date: "2023-03-05", orders: 210 },
-            { date: "2023-04-20", orders: 190 },
-            { date: "2023-05-18", orders: 250 },
-            { date: "2023-06-22", orders: 220 },
-          ],
-          // Full data for top customers
-          topCustomers: [
-            { name: "Alice Johnson", spend: 2540.5 },
-            { name: "Bob Williams", spend: 2180.75 },
-            { name: "Charlie Brown", spend: 1990.0 },
-            { name: "Diana Miller", spend: 1850.25 },
-            { name: "Ethan Davis", spend: 1720.0 },
-          ],
+        const url = `http://localhost:8000/api/store/${store.storeId}/analytics?startDate=${startDate}&endDate=${endDate}`;
+        console.log(`Fetching analytics from: ${url}`);
+
+        const response = await fetch(url, {
+          method: "GET",
+          headers: headers,
         });
+
+        if (response.status === 401)
+          throw new Error(
+            "Authentication failed. Please check your credentials."
+          );
+        if (!response.ok)
+          throw new Error(
+            `Failed to fetch analytics. Server responded with status: ${response.status}`
+          );
+
+        const data = await response.json();
+        setAnalytics(data);
       } catch (err) {
+        console.error("Error fetching analytics:", err);
         setError(err.message);
       } finally {
         setIsLoading(false);
       }
     };
-    loadAnalytics();
-  }, [store, authUser, startDate, endDate]); // Re-fetch if dates change
 
-  // Memoized calculation to filter orders data based on the date range
+    loadAnalytics();
+  }, [store, authUser, startDate, endDate]);
+
   const filteredOrdersData = React.useMemo(() => {
-    if (!analytics) return [];
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return analytics.ordersByDate.filter((order) => {
-      const orderDate = new Date(order.date);
-      return orderDate >= start && orderDate <= end;
-    });
-  }, [analytics, startDate, endDate]);
+    if (!analytics || !analytics.ordersByDate) return [];
+    return analytics.ordersByDate;
+  }, [analytics]);
 
   if (isLoading) {
     return (
@@ -247,10 +271,14 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
     );
   }
   if (error) {
-    return <div className="text-center text-red-500">{error}</div>;
+    return <div className="text-center text-red-500 p-8">Error: {error}</div>;
   }
   if (!analytics) {
-    return <div className="text-center">Could not load analytics data.</div>;
+    return (
+      <div className="text-center p-8">
+        No analytics data available for the selected period.
+      </div>
+    );
   }
 
   return (
@@ -406,6 +434,10 @@ function DashboardPage({ authUser }) {
         if (!response.ok) throw new Error("Failed to fetch stores.");
 
         const fetchedStores = await response.json();
+
+        // --- THIS IS THE ADDED LINE ---
+        console.log("Data received from backend:", fetchedStores);
+
         setStores(fetchedStores);
       } catch (err) {
         setError(err.message);
@@ -457,18 +489,29 @@ function DashboardPage({ authUser }) {
             <div className="space-y-4">
               {stores.map((store) => (
                 <div
-                  key={store.domain}
+                  key={store.storeId || store.domain}
                   className="bg-white rounded-xl shadow p-5 flex items-center justify-between"
                 >
-                  <div>
-                    <p className="font-bold text-gray-900">
-                      {store.storeName || "Unnamed Store"}
-                    </p>
-                    <p className="text-sm text-gray-500">{store.domain}</p>
+                  <div className="flex items-center space-x-4">
+                    <div>
+                      <p className="font-bold text-gray-900">
+                        {store.storeName || "Unnamed Store"}
+                      </p>
+                      <p className="text-sm text-gray-500">{store.domain}</p>
+                    </div>
+                    {!store.storeId && (
+                      <div
+                        className="group relative flex items-center"
+                        title="Store ID is missing from API response. Please check backend DTO."
+                      >
+                        {Icons.Warning}
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={() => handleSelectStore(store)}
-                    className="bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600 transition"
+                    className="bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={!store.storeId}
                   >
                     View Analytics
                   </button>
