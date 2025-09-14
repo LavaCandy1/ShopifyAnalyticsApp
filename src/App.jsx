@@ -13,7 +13,6 @@ import {
 } from "recharts";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-console.log("API Base URL:", import.meta.env.VITE_API_BASE_URL);
 
 const Spinner = () => (
   <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
