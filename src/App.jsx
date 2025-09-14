@@ -196,6 +196,9 @@ function LoginPage({ onLogin, isLoading, error }) {
 
 function AnalyticsDashboard({ store, onBack, authUser }) {
   const [analytics, setAnalytics] = React.useState(null);
+  const [ordersByDate, setOrdersByDate] = React.useState(null);
+  const [totalDetails, setTotalDetails] = React.useState(null);
+  const [top5Customers, setTop5Customers] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
 
@@ -227,26 +230,47 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
         const headers = new Headers();
         const credentials = btoa(`${authUser.email}:${authUser.password}`);
         headers.append("Authorization", `Basic ${credentials}`);
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-        const url = `http://localhost:8000/api/store/${store.storeId}/analytics?startDate=${startDate}&endDate=${endDate}`;
-        console.log(`Fetching analytics from: ${url}`);
-
-        const response = await fetch(url, {
-          method: "GET",
-          headers: headers,
-        });
+        //analytics fetch block start
+        const url = `${API_BASE_URL}/store/${store.storeId}/ordersByDate?startDate=${startDate}&endDate=${endDate}`;
+        const response = await fetch(url, { method: "GET", headers: headers });
 
         if (response.status === 401)
-          throw new Error(
-            "Authentication failed. Please check your credentials."
-          );
-        if (!response.ok)
-          throw new Error(
-            `Failed to fetch analytics. Server responded with status: ${response.status}`
-          );
-
+          throw new Error("Authentication failed. Please check your credentials.");
+        if (!response.ok)throw new Error(`Failed to fetch analytics. Server responded with status: ${response.status}`);
         const data = await response.json();
         setAnalytics(data);
+        setOrdersByDate(data);
+        //analytics fetch block start
+
+
+        //top 5 customer fetch block start
+        const topCustomerUrl =`${API_BASE_URL}/store/${store.storeId}/topCustomers`;
+        const customerResponse = await fetch(topCustomerUrl,{method: "GET", headers: headers})
+
+        if(customerResponse.status===404)throw new Error("Not Found.");
+        if (!response.ok)throw new Error(`Failed to fetch analytics. Server responded with status: ${response.status}`);
+        const customersData = await customerResponse.json();
+        setTop5Customers(customersData);
+        //top 5 customer fetch block finish
+
+
+        //all time data fetch block start
+        const totalDetailsUrl = `${API_BASE_URL}/store/${store.storeId}/totalDetails`;
+        const detailsResponse = await fetch(totalDetailsUrl,{method: "GET", headers: headers})
+
+        if(detailsResponse.status===404)throw new Error("Not Found.");
+        if (!response.ok)throw new Error(`Failed to fetch analytics. Server responded with status: ${response.status}`);
+        const totalData = await detailsResponse.json();
+        setTotalDetails(totalData);
+        //all time data fetch block end
+
+
+
+
+
+
       } catch (err) {
         console.error("Error fetching analytics:", err);
         setError(err.message);
@@ -258,10 +282,7 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
     loadAnalytics();
   }, [store, authUser, startDate, endDate]);
 
-  const filteredOrdersData = React.useMemo(() => {
-    if (!analytics || !analytics.ordersByDate) return [];
-    return analytics.ordersByDate;
-  }, [analytics]);
+  const ordersForChart = ordersByDate ? ordersByDate : [];
 
   if (isLoading) {
     return (
@@ -273,10 +294,10 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
   if (error) {
     return <div className="text-center text-red-500 p-8">Error: {error}</div>;
   }
-  if (!analytics) {
+  if (!ordersByDate) {
     return (
       <div className="text-center p-8">
-        No analytics data available for the selected period.
+        No orders available for the selected period.
       </div>
     );
   }
@@ -312,21 +333,21 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <StatCard
-          title="Total Revenue"
+          title="Total Revenue (All-Time)"
           value={new Intl.NumberFormat("en-US", {
             style: "currency",
             currency: "USD",
-          }).format(analytics.totalRevenue)}
+          }).format(totalDetails.totalRevenue)}
           icon={Icons.Dollar}
         />
         <StatCard
-          title="Total Orders"
-          value={analytics.totalOrders.toLocaleString()}
+          title="Total Orders (All-Time)"
+          value={totalDetails.totalOrders.toLocaleString()}
           icon={Icons.ShoppingCart}
         />
         <StatCard
-          title="Total Customers"
-          value={analytics.totalCustomers.toLocaleString()}
+          title="Total Customers (All-Time)"
+          value={totalDetails.totalCustomers.toLocaleString()}
           icon={Icons.Users}
         />
       </div>
@@ -356,7 +377,7 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart
-              data={filteredOrdersData}
+              data={ordersForChart}
               margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
@@ -376,11 +397,11 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
         </div>
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h3 className="text-xl font-bold text-gray-800 mb-4">
-            Top 5 Customers by Spend
+            Top 5 Customers by Spend (All-Time)
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart
-              data={analytics.topCustomers}
+              data={top5Customers}
               layout="vertical"
               margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
             >
@@ -422,8 +443,10 @@ function DashboardPage({ authUser }) {
         const credentials = btoa(`${authUser.email}:${authUser.password}`);
         headers.append("Authorization", `Basic ${credentials}`);
 
+        // For production, this URL should come from an environment variable.
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
         const response = await fetch(
-          `http://localhost:8000/api/user/${authUser.email}/stores`,
+          `${API_BASE_URL}/user/${authUser.email}/stores`,
           {
             method: "GET",
             headers: headers,
@@ -434,10 +457,7 @@ function DashboardPage({ authUser }) {
         if (!response.ok) throw new Error("Failed to fetch stores.");
 
         const fetchedStores = await response.json();
-
-        // --- THIS IS THE ADDED LINE ---
         console.log("Data received from backend:", fetchedStores);
-
         setStores(fetchedStores);
       } catch (err) {
         setError(err.message);
@@ -547,13 +567,12 @@ export default function App() {
       const credentials = btoa(`${email}:${password}`);
       headers.append("Authorization", `Basic ${credentials}`);
 
-      const response = await fetch(
-        `http://localhost:8000/api/user/${email}/stores`,
-        {
-          method: "GET",
-          headers: headers,
-        }
-      );
+      // For production, this URL should come from an environment variable.
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const response = await fetch(`${API_BASE_URL}/user/${email}/stores`, {
+        method: "GET",
+        headers: headers,
+      });
 
       if (response.status === 401) {
         throw new Error("Invalid email or password.");
