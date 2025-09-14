@@ -16,7 +16,6 @@ import {
 // It is defined directly here to resolve a specific build environment issue.
 const API_BASE_URL = "https://storedataapi-production-a63b.up.railway.app/api";
 
-// --- Helper & UI Components ---
 
 const Spinner = () => (
   <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
@@ -212,7 +211,6 @@ function LoginPage({ onLogin, onSwitchToRegister, isLoading, error, successMessa
   );
 }
 
-// --- NEW COMPONENT: RegistrationPage ---
 function RegistrationPage({ onRegister, onSwitchToLogin, isLoading, error }) {
   const [username, setUsername] = React.useState('');
   const [email, setEmail] = React.useState('');
@@ -620,8 +618,8 @@ function AddStoreModal({ isOpen, onClose, onSubmit, isLoading, error }) {
   );
 }
 
-function DashboardPage({ authUser }) {
-    // This component remains largely unchanged
+// --- MODIFIED ---
+function DashboardPage({ authUser, onLogout }) {
   const [view, setView] = React.useState("list");
   const [stores, setStores] = React.useState([]);
   const [selectedStore, setSelectedStore] = React.useState(null);
@@ -707,9 +705,18 @@ function DashboardPage({ authUser }) {
               Shopify Analytics Hub
             </h1>
           </div>
-          <div className="text-sm text-gray-500">
-            Signed in as{" "}
-            <span className="font-medium text-gray-800">{authUser.email}</span>
+          {/* --- NEW: User info and Logout Button --- */}
+          <div className="flex items-center space-x-4">
+             <div className="text-sm text-gray-500">
+                Signed in as{" "}
+                <span className="font-medium text-gray-800">{authUser.email}</span>
+            </div>
+            <button 
+              onClick={onLogout}
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </header>
@@ -806,16 +813,30 @@ function DashboardPage({ authUser }) {
 // --- App Container (MODIFIED) ---
 
 export default function App() {
-  const [authUser, setAuthUser] = React.useState(null);
+  // --- MODIFIED: Initialize state from Local Storage ---
+  const [authUser, setAuthUser] = React.useState(() => {
+    const savedUser = localStorage.getItem('authUser');
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (error) {
+        console.error("Error parsing authUser from localStorage", error);
+        return null;
+      }
+    }
+    return null;
+  });
+
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [successMessage, setSuccessMessage] = React.useState(null);
-  const [authView, setAuthView] = React.useState('login'); // 'login' or 'register'
+  const [authView, setAuthView] = React.useState('login');
 
+  // --- MODIFIED: Save to Local Storage on successful login ---
   const handleLogin = async (email, password) => {
     setIsLoading(true);
     setError(null);
-    setSuccessMessage(null); // Clear any previous success messages
+    setSuccessMessage(null);
     try {
       const headers = new Headers();
       const credentials = btoa(`${email}:${password}`);
@@ -832,15 +853,23 @@ export default function App() {
           `Network response was not ok, status: ${response.status}`
         );
       }
-      setAuthUser({ email, password });
+      const user = { email, password };
+      setAuthUser(user);
+      localStorage.setItem('authUser', JSON.stringify(user)); // Save user to local storage
     } catch (err) {
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
+  
+  // --- NEW: Logout Handler ---
+  const handleLogout = () => {
+    setAuthUser(null);
+    localStorage.removeItem('authUser'); // Remove user from local storage
+  };
 
-  // --- NEW: Registration Handler ---
+
   const handleRegister = async (username, email, password) => {
     setIsLoading(true);
     setError(null);
@@ -855,11 +884,10 @@ export default function App() {
       });
 
       if (!response.ok) {
-         const errorData = await response.json(); // Attempt to get specific error from backend
+         const errorData = await response.json();
          throw new Error(errorData.message || `Registration failed with status: ${response.status}`);
       }
       
-      // On success, switch to login view with a success message
       setSuccessMessage('Registration successful! Please sign in.');
       setAuthView('login');
 
@@ -878,7 +906,6 @@ export default function App() {
 
   const switchToLogin = () => {
     setError(null);
-    // Keep success message if it exists from registration
     setAuthView('login');
   }
 
@@ -904,5 +931,5 @@ export default function App() {
      )
   }
 
-  return <DashboardPage authUser={authUser} />;
+  return <DashboardPage authUser={authUser} onLogout={handleLogout} />;
 }
