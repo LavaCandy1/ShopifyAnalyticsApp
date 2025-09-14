@@ -14,7 +14,7 @@ import {
 
 // --- In a real production environment, this URL should come from an environment variable. ---
 // It is defined directly here to resolve a specific build environment issue.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = "storedataapi-production-62d6.up.railway.app/api";
 
 // --- Helper & UI Components ---
 
