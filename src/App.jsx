@@ -12,6 +12,10 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+// --- In a real production environment, this URL should come from an environment variable. ---
+// It is defined directly here to resolve a specific build environment issue.
+const API_BASE_URL = "http://localhost:8000/api";
+
 // --- Helper & UI Components ---
 
 const Spinner = () => (
@@ -195,7 +199,6 @@ function LoginPage({ onLogin, isLoading, error }) {
 }
 
 function AnalyticsDashboard({ store, onBack, authUser }) {
-  const [analytics, setAnalytics] = React.useState(null);
   const [ordersByDate, setOrdersByDate] = React.useState(null);
   const [totalDetails, setTotalDetails] = React.useState(null);
   const [top5Customers, setTop5Customers] = React.useState(null);
@@ -216,73 +219,81 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
   const [startDate, setStartDate] = React.useState(getFirstDayOfMonth());
   const [endDate, setEndDate] = React.useState(getToday());
 
+  // --- REFACTORED LOGIC ---
+  // Effect for all-time data (runs only once)
   React.useEffect(() => {
-    const loadAnalytics = async () => {
-      if (!store || !store.storeId) {
-        setError("Store data is missing. Cannot fetch analytics.");
-        setIsLoading(false);
-        return;
-      }
+    const loadAllTimeData = async () => {
+      if (!store || !store.storeId) return;
 
       setIsLoading(true);
       setError(null);
+      
       try {
         const headers = new Headers();
         const credentials = btoa(`${authUser.email}:${authUser.password}`);
         headers.append("Authorization", `Basic ${credentials}`);
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-        //analytics fetch block start
-        const url = `${API_BASE_URL}/store/${store.storeId}/ordersByDate?startDate=${startDate}&endDate=${endDate}`;
-        const response = await fetch(url, { method: "GET", headers: headers });
+        // Use Promise.all to fetch them in parallel for better performance
+        const [customerResponse, detailsResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/store/${store.storeId}/topCustomers`, { headers }),
+          fetch(`${API_BASE_URL}/store/${store.storeId}/totalDetails`, { headers })
+        ]);
 
-        if (response.status === 401)
-          throw new Error("Authentication failed. Please check your credentials.");
-        if (!response.ok)throw new Error(`Failed to fetch analytics. Server responded with status: ${response.status}`);
-        const data = await response.json();
-        setAnalytics(data);
-        setOrdersByDate(data);
-        //analytics fetch block start
+        if (!customerResponse.ok || !detailsResponse.ok) {
+            throw new Error('Failed to fetch all-time analytics data.');
+        }
 
-
-        //top 5 customer fetch block start
-        const topCustomerUrl =`${API_BASE_URL}/store/${store.storeId}/topCustomers`;
-        const customerResponse = await fetch(topCustomerUrl,{method: "GET", headers: headers})
-
-        if(customerResponse.status===404)throw new Error("Not Found.");
-        if (!response.ok)throw new Error(`Failed to fetch analytics. Server responded with status: ${response.status}`);
         const customersData = await customerResponse.json();
-        setTop5Customers(customersData);
-        //top 5 customer fetch block finish
-
-
-        //all time data fetch block start
-        const totalDetailsUrl = `${API_BASE_URL}/store/${store.storeId}/totalDetails`;
-        const detailsResponse = await fetch(totalDetailsUrl,{method: "GET", headers: headers})
-
-        if(detailsResponse.status===404)throw new Error("Not Found.");
-        if (!response.ok)throw new Error(`Failed to fetch analytics. Server responded with status: ${response.status}`);
         const totalData = await detailsResponse.json();
+
+        setTop5Customers(customersData);
         setTotalDetails(totalData);
-        //all time data fetch block end
-
-
-
-
-
 
       } catch (err) {
-        console.error("Error fetching analytics:", err);
+        console.error("Error fetching all-time data:", err);
         setError(err.message);
       } finally {
+        // We set loading to false only after all data is fetched in both effects
+        // This is handled in the second effect
+      }
+    };
+    
+    loadAllTimeData();
+  }, [store, authUser]); // Depends only on store and user
+
+  // Effect for date-filtered data
+  React.useEffect(() => {
+    const loadDateFilteredData = async () => {
+      if (!store || !store.storeId) return;
+
+      // Don't show main loader again, but handle errors
+      setError(null);
+
+      try {
+        const headers = new Headers();
+        const credentials = btoa(`${authUser.email}:${authUser.password}`);
+        headers.append("Authorization", `Basic ${credentials}`);
+
+        const url = `${API_BASE_URL}/store/${store.storeId}/ordersByDate?startDate=${startDate}&endDate=${endDate}`;
+        const response = await fetch(url, { headers });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch orders by date. Status: ${response.status}`);
+        }
+        const data = await response.json();
+        setOrdersByDate(data);
+
+      } catch (err) {
+        console.error("Error fetching date-filtered data:", err);
+        setError(err.message); // This will show an error if the date fetch fails
+      } finally {
+        // This is the final step, so we can stop the main loading indicator
         setIsLoading(false);
       }
     };
 
-    loadAnalytics();
-  }, [store, authUser, startDate, endDate]);
-
-  const ordersForChart = ordersByDate ? ordersByDate : [];
+    loadDateFilteredData();
+  }, [store, authUser, startDate, endDate]); // Re-runs when dates change
 
   if (isLoading) {
     return (
@@ -294,10 +305,11 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
   if (error) {
     return <div className="text-center text-red-500 p-8">Error: {error}</div>;
   }
-  if (!ordersByDate) {
+  // Check that all data has been loaded before rendering
+  if (!ordersByDate || !totalDetails || !top5Customers) {
     return (
       <div className="text-center p-8">
-        No orders available for the selected period.
+        Not all analytics data could be loaded. Please try again.
       </div>
     );
   }
@@ -377,7 +389,7 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
           </div>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart
-              data={ordersForChart}
+              data={ordersByDate}
               margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
@@ -442,9 +454,7 @@ function DashboardPage({ authUser }) {
         const headers = new Headers();
         const credentials = btoa(`${authUser.email}:${authUser.password}`);
         headers.append("Authorization", `Basic ${credentials}`);
-
-        // For production, this URL should come from an environment variable.
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+        
         const response = await fetch(
           `${API_BASE_URL}/user/${authUser.email}/stores`,
           {
@@ -566,9 +576,7 @@ export default function App() {
       const headers = new Headers();
       const credentials = btoa(`${email}:${password}`);
       headers.append("Authorization", `Basic ${credentials}`);
-
-      // For production, this URL should come from an environment variable.
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      
       const response = await fetch(`${API_BASE_URL}/user/${email}/stores`, {
         method: "GET",
         headers: headers,
@@ -599,3 +607,4 @@ export default function App() {
 
   return <DashboardPage authUser={authUser} />;
 }
+
