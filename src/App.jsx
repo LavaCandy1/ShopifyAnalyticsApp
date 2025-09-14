@@ -46,19 +46,16 @@ const Icons = {
       id="magicoon-Filled"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <defs>{/* <style>.cls-1{fill:#41416e;}</style> */}</defs>
-
       <title>store</title>
-
       <g id="store-Filled">
         <path
           style={{ fill: "#4338ca" }}
           id="store-Filled-2"
           data-name="store-Filled"
-          class="cls-1"
+          className="cls-1"
           d="M20.5,18A3.5,3.5,0,0,1,17,21.5H14.53V19a2.5,2.5,0,0,0-5,0v2.5H7A3.5,3.5,0,0,1,3.5, 
-          18V13.35A5.634,5.634,0,0,0,5.99,14,4.409,4.409,0,0,0,9,12.78a4.3,4.3,0,0,0,6,0A4.409, 
-          4.409,0,0,0,18.01,14a5.634,5.634,0,0,0,2.49-.65Zm.974-9.158L20.386,5.577A4.494,4.494,0,0,0,16.117,2.5H7.883A4.494,4.494,0,0,0,3.614,5.577L2.526,8.842A.5.5,0,0,0,2.5,9a3.5,3.5,0,0,0,3.49,3.5A3.853,3.853,0,0,0,9,11.034a3.809,3.809,0,0,0,6.006,0A3.854,3.854,0,0,0,18.01,12.5,3.5,3.5,0,0,0,21.5,9,.5.5,0,0,0,21.474,8.842Z"
+           18V13.35A5.634,5.634,0,0,0,5.99,14,4.409,4.409,0,0,0,9,12.78a4.3,4.3,0,0,0,6,0A4.409, 
+           4.409,0,0,0,18.01,14a5.634,5.634,0,0,0,2.49-.65Zm.974-9.158L20.386,5.577A4.494,4.494,0,0,0,16.117,2.5H7.883A4.494,4.494,0,0,0,3.614,5.577L2.526,8.842A.5.5,0,0,0,2.5,9a3.5,3.5,0,0,0,3.49,3.5A3.853,3.853,0,0,0,9,11.034a3.809,3.809,0,0,0,6.006,0A3.854,3.854,0,0,0,18.01,12.5,3.5,3.5,0,0,0,21.5,9,.5.5,0,0,0,21.474,8.842Z"
         />
       </g>
     </svg>
@@ -70,9 +67,9 @@ const Icons = {
       version="1.1"
       id="Layer_1"
       xmlns="http://www.w3.org/2000/svg"
-      xmlns:xlink="http://www.w3.org/1999/xlink"
+      xmlnsXlink="http://www.w3.org/1999/xlink"
       viewBox="0 0 511.999 511.999"
-      xml:space="preserve"
+      xmlSpace="preserve"
     >
       <g>
         <path
@@ -355,9 +352,13 @@ function RegistrationPage({ onRegister, onSwitchToLogin, isLoading, error }) {
 }
 
 function AnalyticsDashboard({ store, onBack, authUser }) {
+  const [syncStatus, setSyncStatus] = React.useState("idle");
+  const [syncMessage, setSyncMessage] = React.useState("");
+
   const [ordersByDate, setOrdersByDate] = React.useState(null);
   const [totalDetails, setTotalDetails] = React.useState(null);
   const [top5Customers, setTop5Customers] = React.useState(null);
+
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
 
@@ -375,82 +376,128 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
   const [startDate, setStartDate] = React.useState(getFirstDayOfMonth());
   const [endDate, setEndDate] = React.useState(getToday());
 
+  // store data sync
   React.useEffect(() => {
-    const loadAllTimeData = async () => {
-      if (!store || !store.storeId) return;
-      setIsLoading(true);
-      setError(null);
-      try {
-        const headers = new Headers();
-        const credentials = btoa(`${authUser.email}:${authUser.password}`);
-        headers.append("Authorization", `Basic ${credentials}`);
-        const [customerResponse, detailsResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/store/${store.storeId}/topCustomers`, {
-            headers,
-          }),
-          fetch(`${API_BASE_URL}/store/${store.storeId}/totalDetails`, {
-            headers,
-          }),
-        ]);
-        if (!customerResponse.ok || !detailsResponse.ok) {
-          throw new Error("Failed to fetch all-time analytics data.");
-        }
-        const customersData = await customerResponse.json();
-        const totalData = await detailsResponse.json();
-        setTop5Customers(customersData);
-        setTotalDetails(totalData);
-      } catch (err) {
-        console.error("Error fetching all-time data:", err);
-        setError(err.message);
-      }
-    };
-    loadAllTimeData();
-  }, [store, authUser]);
+    const syncStoreData = async () => {
+      if (!store || !store.storeId || !authUser) return;
 
-  React.useEffect(() => {
-    const loadDateFilteredData = async () => {
-      if (!store || !store.storeId) return;
+      setIsLoading(true);
+      setSyncStatus("syncing");
+      setSyncMessage("Syncing latest data with Shopify...");
       setError(null);
+
       try {
         const headers = new Headers();
         const credentials = btoa(`${authUser.email}:${authUser.password}`);
         headers.append("Authorization", `Basic ${credentials}`);
-        const url = `${API_BASE_URL}/store/${store.storeId}/ordersByDate?startDate=${startDate}&endDate=${endDate}`;
-        const response = await fetch(url, { headers });
+
+        const response = await fetch(
+          `${API_BASE_URL}/store/${store.storeId}/sync`,
+          {
+            method: "POST",
+            headers: headers,
+          }
+        );
+
         if (!response.ok) {
+          const errorData = await response.json();
           throw new Error(
-            `Failed to fetch orders by date. Status: ${response.status}`
+            errorData.message || `Sync failed with status: ${response.status}`
           );
         }
-        const data = await response.json();
-        setOrdersByDate(data);
+
+        const result = await response.json();
+
+        setSyncStatus("success");
+        setSyncMessage(
+          result.message || "Sync complete. Fetching analytics..."
+        );
       } catch (err) {
-        console.error("Error fetching date-filtered data:", err);
+        console.error("Sync Error:", err);
+        setSyncStatus("error");
+        setSyncMessage(err.message);
+        setError(err.message);
+        setIsLoading(false);
+      }
+    };
+    syncStoreData();
+  }, [store, authUser]);
+
+  // store analytics data load
+  React.useEffect(() => {
+    const loadAnalyticsData = async () => {
+      if (syncStatus !== "success" || !store || !store.storeId) return;
+
+      try {
+        const headers = new Headers();
+        const credentials = btoa(`${authUser.email}:${authUser.password}`);
+        headers.append("Authorization", `Basic ${credentials}`);
+
+        const [customerResponse, detailsResponse, ordersResponse] =
+          await Promise.all([
+            fetch(`${API_BASE_URL}/store/${store.storeId}/topCustomers`, {
+              headers,
+            }),
+            fetch(`${API_BASE_URL}/store/${store.storeId}/totalDetails`, {
+              headers,
+            }),
+            fetch(
+              `${API_BASE_URL}/store/${store.storeId}/ordersByDate?startDate=${startDate}&endDate=${endDate}`,
+              { headers }
+            ),
+          ]);
+
+        if (!customerResponse.ok || !detailsResponse.ok || !ordersResponse.ok) {
+          throw new Error("Failed to fetch analytics data after sync.");
+        }
+
+        const customersData = await customerResponse.json();
+        const totalData = await detailsResponse.json();
+        const ordersData = await ordersResponse.json();
+
+        setTop5Customers(customersData);
+        setTotalDetails(totalData);
+        setOrdersByDate(ordersData);
+      } catch (err) {
+        console.error("Analytics Fetch Error:", err);
         setError(err.message);
       } finally {
         setIsLoading(false);
       }
     };
-    loadDateFilteredData();
-  }, [store, authUser, startDate, endDate]);
+
+    loadAnalyticsData();
+  }, [syncStatus, store, authUser, startDate, endDate]);
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-xl font-semibold">Loading Dashboard...</div>
+      <div className="flex flex-col justify-center items-center h-screen space-y-4">
+        <Spinner />
+        <div className="text-xl font-semibold text-gray-700">
+          {syncMessage || "Initializing..."}
+        </div>
       </div>
     );
   }
-  if (error) {
+
+  if (error && syncStatus === "error") {
     return <div className="text-center text-red-500 p-8">Error: {error}</div>;
   }
+
   if (!ordersByDate || !totalDetails || !top5Customers) {
     return (
       <div className="text-center p-8">
-        Not all analytics data could be loaded. Please try again.
+        Could not load all analytics data. Please try refreshing.
       </div>
     );
   }
+
+  const syncStatusStyles = {
+    syncing: "bg-blue-100 text-blue-800",
+    success: "bg-green-100 text-green-800",
+    error: "bg-red-100 text-red-800",
+    idle: "hidden",
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -476,7 +523,7 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
       <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
         Analytics Dashboard
       </h1>
-      <p className="text-lg text-indigo-700 font-semibold mb-8">
+      <p className="text-lg text-indigo-700 font-semibold mb-4">
         {store.domain}
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -499,6 +546,7 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
           icon={Icons.Users}
         />
       </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex justify-between items-center mb-4">
@@ -679,11 +727,8 @@ function DashboardPage({ authUser, onLogout }) {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [formError, setFormError] = React.useState(null);
-
-  // --- State to hold the full user details, including username ---
   const [userDetails, setUserDetails] = React.useState(null);
 
-  // --- useEffect to fetch user details when the component mounts ---
   React.useEffect(() => {
     const fetchUserDetails = async () => {
       if (!authUser) return;
@@ -701,7 +746,7 @@ function DashboardPage({ authUser, onLogout }) {
         }
 
         const data = await response.json();
-        setUserDetails(data); // Save the fetched user details to state
+        setUserDetails(data);
       } catch (err) {
         console.error("Failed to fetch user details:", err);
       }
