@@ -606,7 +606,7 @@ function DashboardPage({ authUser }) {
       headers.append("Content-Type", "application/json");
 
       const response = await fetch(
-        `${API_BASE_URL}/user/${authUser.email}/addStore`,
+        `${API_BASE_URL}/user/${authUser.id}/addStore`,
         {
           method: "POST",
           headers: headers,
