@@ -14,7 +14,7 @@ import {
 
 // --- In a real production environment, this URL should come from an environment variable. ---
 // It is defined directly here to resolve a specific build environment issue.
-const API_BASE_URL = "https://storedataapi-production-a63b.up.railway.app/api";
+const API_BASE_URL = "http://localhost:8000/api";
 
 
 const Spinner = () => (
@@ -301,7 +301,6 @@ function RegistrationPage({ onRegister, onSwitchToLogin, isLoading, error }) {
 }
 
 function AnalyticsDashboard({ store, onBack, authUser }) {
-  // This component remains unchanged
   const [ordersByDate, setOrdersByDate] = React.useState(null);
   const [totalDetails, setTotalDetails] = React.useState(null);
   const [top5Customers, setTop5Customers] = React.useState(null);
@@ -521,7 +520,6 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
 }
 
 function AddStoreModal({ isOpen, onClose, onSubmit, isLoading, error }) {
-    // This component remains unchanged
   const [domain, setDomain] = React.useState("");
   const [accessToken, setAccessToken] = React.useState("");
   if (!isOpen) return null;
@@ -618,7 +616,7 @@ function AddStoreModal({ isOpen, onClose, onSubmit, isLoading, error }) {
   );
 }
 
-// --- MODIFIED ---
+
 function DashboardPage({ authUser, onLogout }) {
   const [view, setView] = React.useState("list");
   const [stores, setStores] = React.useState([]);
@@ -628,6 +626,36 @@ function DashboardPage({ authUser, onLogout }) {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [formError, setFormError] = React.useState(null);
+
+  // --- State to hold the full user details, including username ---
+  const [userDetails, setUserDetails] = React.useState(null);
+
+  // --- useEffect to fetch user details when the component mounts ---
+  React.useEffect(() => {
+    const fetchUserDetails = async () => {
+      if (!authUser) return;
+      try {
+        const headers = new Headers();
+        const credentials = btoa(`${authUser.email}:${authUser.password}`);
+        headers.append("Authorization", `Basic ${credentials}`);
+
+        const response = await fetch(`${API_BASE_URL}/user/${authUser.email}`, {
+          headers: headers,
+        });
+
+        if (!response.ok) {
+          throw new Error("Could not fetch user details.");
+        }
+
+        const data = await response.json();
+        setUserDetails(data); // Save the fetched user details to state
+      } catch (err) {
+        console.error("Failed to fetch user details:", err);
+      }
+    };
+
+    fetchUserDetails();
+  }, [authUser]);
 
   const loadStores = React.useCallback(async () => {
     if (!authUser) return;
@@ -705,15 +733,16 @@ function DashboardPage({ authUser, onLogout }) {
               Shopify Analytics Hub
             </h1>
           </div>
-          {/* --- NEW: User info and Logout Button --- */}
           <div className="flex items-center space-x-4">
-             <div className="text-sm text-gray-500">
-                Signed in as{" "}
-                <span className="font-medium text-gray-800">{authUser.email}</span>
+            <div className="text-lg text-gray-500">
+              {userDetails ? "Welcome, " : "Signed in as "}
+              <span className="font-medium text-gray-800">
+                {userDetails ? userDetails.username : authUser.email}
+              </span>
             </div>
-            <button 
+            <button
               onClick={onLogout}
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+              className="text-sm font-sm py-1 px-2 outline hover:outline-red-600 rounded-lg text-indigo-600 hover:text-red-500"
             >
               Logout
             </button>
@@ -810,10 +839,8 @@ function DashboardPage({ authUser, onLogout }) {
   );
 }
 
-// --- App Container (MODIFIED) ---
 
 export default function App() {
-  // --- MODIFIED: Initialize state from Local Storage ---
   const [authUser, setAuthUser] = React.useState(() => {
     const savedUser = localStorage.getItem('authUser');
     if (savedUser) {
@@ -832,7 +859,6 @@ export default function App() {
   const [successMessage, setSuccessMessage] = React.useState(null);
   const [authView, setAuthView] = React.useState('login');
 
-  // --- MODIFIED: Save to Local Storage on successful login ---
   const handleLogin = async (email, password) => {
     setIsLoading(true);
     setError(null);
@@ -855,7 +881,7 @@ export default function App() {
       }
       const user = { email, password };
       setAuthUser(user);
-      localStorage.setItem('authUser', JSON.stringify(user)); // Save user to local storage
+      localStorage.setItem('authUser', JSON.stringify(user));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -863,10 +889,9 @@ export default function App() {
     }
   };
   
-  // --- NEW: Logout Handler ---
   const handleLogout = () => {
     setAuthUser(null);
-    localStorage.removeItem('authUser'); // Remove user from local storage
+    localStorage.removeItem('authUser');
   };
 
 
