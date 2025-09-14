@@ -112,10 +112,10 @@ const Icons = {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      class="text-yellow-500"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-yellow-500"
     >
       <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
       <path d="M12 9v4" />
@@ -126,7 +126,7 @@ const Icons = {
 
 // --- Main Application Components ---
 
-function LoginPage({ onLogin, isLoading, error }) {
+function LoginPage({ onLogin, onSwitchToRegister, isLoading, error, successMessage }) {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
 
@@ -152,6 +152,14 @@ function LoginPage({ onLogin, isLoading, error }) {
             role="alert"
           >
             {error}
+          </div>
+        )}
+        {successMessage && (
+           <div
+            className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg"
+            role="alert"
+          >
+            {successMessage}
           </div>
         )}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -193,12 +201,109 @@ function LoginPage({ onLogin, isLoading, error }) {
             </button>
           </div>
         </form>
+         <p className="mt-4 text-center text-sm text-gray-600">
+          Don't have an account?{' '}
+          <button onClick={onSwitchToRegister} className="font-medium text-indigo-600 hover:text-indigo-500">
+            Sign up
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// --- NEW COMPONENT: RegistrationPage ---
+function RegistrationPage({ onRegister, onSwitchToLogin, isLoading, error }) {
+  const [username, setUsername] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onRegister(username, email, password);
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-xl shadow-lg">
+        <div className="text-center">
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+            Create a new account
+          </h2>
+        </div>
+        {error && (
+          <div
+            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg"
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Username"
+              />
+            </div>
+            <div>
+              <input
+                id="email-address"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+              />
+            </div>
+            <div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+              />
+            </div>
+          </div>
+          <div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
+            >
+              {isLoading ? <Spinner /> : 'Create Account'}
+            </button>
+          </div>
+        </form>
+         <p className="mt-4 text-center text-sm text-gray-600">
+          Already have an account?{' '}
+          <button onClick={onSwitchToLogin} className="font-medium text-indigo-600 hover:text-indigo-500">
+            Sign in
+          </button>
+        </p>
       </div>
     </div>
   );
 }
 
 function AnalyticsDashboard({ store, onBack, authUser }) {
+  // This component remains unchanged
   const [ordersByDate, setOrdersByDate] = React.useState(null);
   const [totalDetails, setTotalDetails] = React.useState(null);
   const [top5Customers, setTop5Customers] = React.useState(null);
@@ -219,21 +324,15 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
   const [startDate, setStartDate] = React.useState(getFirstDayOfMonth());
   const [endDate, setEndDate] = React.useState(getToday());
 
-  // --- REFACTORED LOGIC ---
-  // Effect for all-time data (runs only once)
   React.useEffect(() => {
     const loadAllTimeData = async () => {
       if (!store || !store.storeId) return;
-
       setIsLoading(true);
       setError(null);
-
       try {
         const headers = new Headers();
         const credentials = btoa(`${authUser.email}:${authUser.password}`);
         headers.append("Authorization", `Basic ${credentials}`);
-
-        // Use Promise.all to fetch them in parallel for better performance
         const [customerResponse, detailsResponse] = await Promise.all([
           fetch(`${API_BASE_URL}/store/${store.storeId}/topCustomers`, {
             headers,
@@ -242,44 +341,31 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
             headers,
           }),
         ]);
-
         if (!customerResponse.ok || !detailsResponse.ok) {
           throw new Error("Failed to fetch all-time analytics data.");
         }
-
         const customersData = await customerResponse.json();
         const totalData = await detailsResponse.json();
-
         setTop5Customers(customersData);
         setTotalDetails(totalData);
       } catch (err) {
         console.error("Error fetching all-time data:", err);
         setError(err.message);
-      } finally {
-        // We set loading to false only after all data is fetched in both effects
-        // This is handled in the second effect
       }
     };
-
     loadAllTimeData();
-  }, [store, authUser]); // Depends only on store and user
+  }, [store, authUser]);
 
-  // Effect for date-filtered data
   React.useEffect(() => {
     const loadDateFilteredData = async () => {
       if (!store || !store.storeId) return;
-
-      // Don't show main loader again, but handle errors
       setError(null);
-
       try {
         const headers = new Headers();
         const credentials = btoa(`${authUser.email}:${authUser.password}`);
         headers.append("Authorization", `Basic ${credentials}`);
-
         const url = `${API_BASE_URL}/store/${store.storeId}/ordersByDate?startDate=${startDate}&endDate=${endDate}`;
         const response = await fetch(url, { headers });
-
         if (!response.ok) {
           throw new Error(
             `Failed to fetch orders by date. Status: ${response.status}`
@@ -289,15 +375,13 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
         setOrdersByDate(data);
       } catch (err) {
         console.error("Error fetching date-filtered data:", err);
-        setError(err.message); // This will show an error if the date fetch fails
+        setError(err.message);
       } finally {
-        // This is the final step, so we can stop the main loading indicator
         setIsLoading(false);
       }
     };
-
     loadDateFilteredData();
-  }, [store, authUser, startDate, endDate]); // Re-runs when dates change
+  }, [store, authUser, startDate, endDate]);
 
   if (isLoading) {
     return (
@@ -309,7 +393,6 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
   if (error) {
     return <div className="text-center text-red-500 p-8">Error: {error}</div>;
   }
-  // Check that all data has been loaded before rendering
   if (!ordersByDate || !totalDetails || !top5Customers) {
     return (
       <div className="text-center p-8">
@@ -339,14 +422,12 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
         </svg>
         <span>Back to Stores</span>
       </button>
-
       <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
         Analytics Dashboard
       </h1>
       <p className="text-lg text-indigo-700 font-semibold mb-8">
         {store.domain}
       </p>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <StatCard
           title="Total Revenue (All-Time)"
@@ -367,7 +448,6 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
           icon={Icons.Users}
         />
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex justify-between items-center mb-4">
@@ -442,24 +522,15 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
   );
 }
 
-// --- NEW COMPONENT: AddStoreModal ---
-function AddStoreModal({
-  isOpen,
-  onClose,
-  onSubmit,
-  isLoading,
-  error,
-}) {
+function AddStoreModal({ isOpen, onClose, onSubmit, isLoading, error }) {
+    // This component remains unchanged
   const [domain, setDomain] = React.useState("");
   const [accessToken, setAccessToken] = React.useState("");
-
   if (!isOpen) return null;
-
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(domain, accessToken);
   };
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
@@ -550,13 +621,12 @@ function AddStoreModal({
 }
 
 function DashboardPage({ authUser }) {
+    // This component remains largely unchanged
   const [view, setView] = React.useState("list");
   const [stores, setStores] = React.useState([]);
   const [selectedStore, setSelectedStore] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
-
-  // --- NEW: State for the "Add Store" modal ---
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [formError, setFormError] = React.useState(null);
@@ -569,20 +639,13 @@ function DashboardPage({ authUser }) {
       const headers = new Headers();
       const credentials = btoa(`${authUser.email}:${authUser.password}`);
       headers.append("Authorization", `Basic ${credentials}`);
-
       const response = await fetch(
         `${API_BASE_URL}/user/${authUser.email}/stores`,
-        {
-          method: "GET",
-          headers: headers,
-        }
+        { method: "GET", headers: headers }
       );
-
       if (response.status === 401) throw new Error("Authentication failed.");
       if (!response.ok) throw new Error("Failed to fetch stores.");
-
       const fetchedStores = await response.json();
-      console.log("Data received from backend:", fetchedStores);
       setStores(fetchedStores);
     } catch (err) {
       setError(err.message);
@@ -595,7 +658,6 @@ function DashboardPage({ authUser }) {
     loadStores();
   }, [loadStores]);
 
-  // --- NEW: Function to handle adding a store ---
   const handleAddStore = async (domain, accessToken) => {
     setIsSubmitting(true);
     setFormError(null);
@@ -604,24 +666,20 @@ function DashboardPage({ authUser }) {
       const credentials = btoa(`${authUser.email}:${authUser.password}`);
       headers.append("Authorization", `Basic ${credentials}`);
       headers.append("Content-Type", "application/json");
-
       const response = await fetch(
-        `${API_BASE_URL}/user/${authUser.id}/addStore`,
+        `${API_BASE_URL}/user/${authUser.email}/addStore`,
         {
           method: "POST",
           headers: headers,
           body: JSON.stringify({ domain, accessToken }),
         }
       );
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to add the store.");
       }
-
-      // Success!
-      setIsModalOpen(false); // Close modal
-      await loadStores(); // Refresh the list of stores
+      setIsModalOpen(false);
+      await loadStores();
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -658,7 +716,6 @@ function DashboardPage({ authUser }) {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {view === "list" && (
           <div className="px-4">
-            {/* --- MODIFIED: Header with Add Store Button --- */}
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-gray-800">
                 Connected Stores
@@ -687,7 +744,6 @@ function DashboardPage({ authUser }) {
                 <span>Add New Store</span>
               </button>
             </div>
-
             {isLoading && <p>Loading stores...</p>}
             {error && (
               <div className="bg-red-100 text-red-700 px-4 py-2 rounded">
@@ -736,8 +792,6 @@ function DashboardPage({ authUser }) {
           />
         )}
       </main>
-
-      {/* --- NEW: Render the modal --- */}
       <AddStoreModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -749,26 +803,27 @@ function DashboardPage({ authUser }) {
   );
 }
 
-// --- App Container ---
+// --- App Container (MODIFIED) ---
 
 export default function App() {
   const [authUser, setAuthUser] = React.useState(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
+  const [successMessage, setSuccessMessage] = React.useState(null);
+  const [authView, setAuthView] = React.useState('login'); // 'login' or 'register'
 
   const handleLogin = async (email, password) => {
     setIsLoading(true);
     setError(null);
+    setSuccessMessage(null); // Clear any previous success messages
     try {
       const headers = new Headers();
       const credentials = btoa(`${email}:${password}`);
       headers.append("Authorization", `Basic ${credentials}`);
-
       const response = await fetch(`${API_BASE_URL}/user/${email}/stores`, {
         method: "GET",
         headers: headers,
       });
-
       if (response.status === 401) {
         throw new Error("Invalid email or password.");
       }
@@ -777,7 +832,6 @@ export default function App() {
           `Network response was not ok, status: ${response.status}`
         );
       }
-
       setAuthUser({ email, password });
     } catch (err) {
       setError(err.message);
@@ -786,10 +840,68 @@ export default function App() {
     }
   };
 
+  // --- NEW: Registration Handler ---
+  const handleRegister = async (username, email, password) => {
+    setIsLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, email, password }),
+      });
+
+      if (!response.ok) {
+         const errorData = await response.json(); // Attempt to get specific error from backend
+         throw new Error(errorData.message || `Registration failed with status: ${response.status}`);
+      }
+      
+      // On success, switch to login view with a success message
+      setSuccessMessage('Registration successful! Please sign in.');
+      setAuthView('login');
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const switchToRegister = () => {
+    setError(null);
+    setSuccessMessage(null);
+    setAuthView('register');
+  }
+
+  const switchToLogin = () => {
+    setError(null);
+    // Keep success message if it exists from registration
+    setAuthView('login');
+  }
+
   if (!authUser) {
-    return (
-      <LoginPage onLogin={handleLogin} isLoading={isLoading} error={error} />
-    );
+     if (authView === 'login') {
+       return (
+        <LoginPage 
+          onLogin={handleLogin} 
+          onSwitchToRegister={switchToRegister}
+          isLoading={isLoading} 
+          error={error} 
+          successMessage={successMessage}
+        />
+      );
+     }
+     return (
+       <RegistrationPage
+        onRegister={handleRegister}
+        onSwitchToLogin={switchToLogin}
+        isLoading={isLoading}
+        error={error}
+       />
+     )
   }
 
   return <DashboardPage authUser={authUser} />;
