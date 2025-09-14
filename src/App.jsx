@@ -227,7 +227,7 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
 
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const headers = new Headers();
         const credentials = btoa(`${authUser.email}:${authUser.password}`);
@@ -235,12 +235,16 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
 
         // Use Promise.all to fetch them in parallel for better performance
         const [customerResponse, detailsResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/store/${store.storeId}/topCustomers`, { headers }),
-          fetch(`${API_BASE_URL}/store/${store.storeId}/totalDetails`, { headers })
+          fetch(`${API_BASE_URL}/store/${store.storeId}/topCustomers`, {
+            headers,
+          }),
+          fetch(`${API_BASE_URL}/store/${store.storeId}/totalDetails`, {
+            headers,
+          }),
         ]);
 
         if (!customerResponse.ok || !detailsResponse.ok) {
-            throw new Error('Failed to fetch all-time analytics data.');
+          throw new Error("Failed to fetch all-time analytics data.");
         }
 
         const customersData = await customerResponse.json();
@@ -248,7 +252,6 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
 
         setTop5Customers(customersData);
         setTotalDetails(totalData);
-
       } catch (err) {
         console.error("Error fetching all-time data:", err);
         setError(err.message);
@@ -257,7 +260,7 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
         // This is handled in the second effect
       }
     };
-    
+
     loadAllTimeData();
   }, [store, authUser]); // Depends only on store and user
 
@@ -278,11 +281,12 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
         const response = await fetch(url, { headers });
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch orders by date. Status: ${response.status}`);
+          throw new Error(
+            `Failed to fetch orders by date. Status: ${response.status}`
+          );
         }
         const data = await response.json();
         setOrdersByDate(data);
-
       } catch (err) {
         console.error("Error fetching date-filtered data:", err);
         setError(err.message); // This will show an error if the date fetch fails
@@ -438,6 +442,113 @@ function AnalyticsDashboard({ store, onBack, authUser }) {
   );
 }
 
+// --- NEW COMPONENT: AddStoreModal ---
+function AddStoreModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  isLoading,
+  error,
+}) {
+  const [domain, setDomain] = React.useState("");
+  const [accessToken, setAccessToken] = React.useState("");
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(domain, accessToken);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">Add New Store</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-800"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        {error && (
+          <div className="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4">
+            {error}
+          </div>
+        )}
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="domain"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Store Domain
+              </label>
+              <input
+                type="text"
+                id="domain"
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+                placeholder="example.myshopify.com"
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="accessToken"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Admin API Access Token
+              </label>
+              <input
+                type="password"
+                id="accessToken"
+                value={accessToken}
+                onChange={(e) => setAccessToken(e.target.value)}
+                placeholder="shpat_xxxxxxxxxxxxxxxxxxxx"
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+            </div>
+          </div>
+          <div className="mt-8 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none disabled:bg-indigo-400"
+            >
+              {isLoading ? "Adding..." : "Add Store"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function DashboardPage({ authUser }) {
   const [view, setView] = React.useState("list");
   const [stores, setStores] = React.useState([]);
@@ -445,38 +556,78 @@ function DashboardPage({ authUser }) {
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
 
-  React.useEffect(() => {
-    const loadStores = async () => {
-      if (!authUser) return;
-      setIsLoading(true);
-      setError(null);
-      try {
-        const headers = new Headers();
-        const credentials = btoa(`${authUser.email}:${authUser.password}`);
-        headers.append("Authorization", `Basic ${credentials}`);
-        
-        const response = await fetch(
-          `${API_BASE_URL}/user/${authUser.email}/stores`,
-          {
-            method: "GET",
-            headers: headers,
-          }
-        );
+  // --- NEW: State for the "Add Store" modal ---
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [formError, setFormError] = React.useState(null);
 
-        if (response.status === 401) throw new Error("Authentication failed.");
-        if (!response.ok) throw new Error("Failed to fetch stores.");
+  const loadStores = React.useCallback(async () => {
+    if (!authUser) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const headers = new Headers();
+      const credentials = btoa(`${authUser.email}:${authUser.password}`);
+      headers.append("Authorization", `Basic ${credentials}`);
 
-        const fetchedStores = await response.json();
-        console.log("Data received from backend:", fetchedStores);
-        setStores(fetchedStores);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadStores();
+      const response = await fetch(
+        `${API_BASE_URL}/user/${authUser.email}/stores`,
+        {
+          method: "GET",
+          headers: headers,
+        }
+      );
+
+      if (response.status === 401) throw new Error("Authentication failed.");
+      if (!response.ok) throw new Error("Failed to fetch stores.");
+
+      const fetchedStores = await response.json();
+      console.log("Data received from backend:", fetchedStores);
+      setStores(fetchedStores);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   }, [authUser]);
+
+  React.useEffect(() => {
+    loadStores();
+  }, [loadStores]);
+
+  // --- NEW: Function to handle adding a store ---
+  const handleAddStore = async (domain, accessToken) => {
+    setIsSubmitting(true);
+    setFormError(null);
+    try {
+      const headers = new Headers();
+      const credentials = btoa(`${authUser.email}:${authUser.password}`);
+      headers.append("Authorization", `Basic ${credentials}`);
+      headers.append("Content-Type", "application/json");
+
+      const response = await fetch(
+        `${API_BASE_URL}/user/${authUser.email}/addStore`,
+        {
+          method: "POST",
+          headers: headers,
+          body: JSON.stringify({ domain, accessToken }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to add the store.");
+      }
+
+      // Success!
+      setIsModalOpen(false); // Close modal
+      await loadStores(); // Refresh the list of stores
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSelectStore = (store) => {
     setSelectedStore(store);
@@ -507,9 +658,36 @@ function DashboardPage({ authUser }) {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {view === "list" && (
           <div className="px-4">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              Connected Stores
-            </h2>
+            {/* --- MODIFIED: Header with Add Store Button --- */}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">
+                Connected Stores
+              </h2>
+              <button
+                onClick={() => {
+                  setFormError(null);
+                  setIsModalOpen(true);
+                }}
+                className="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition flex items-center space-x-2"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span>Add New Store</span>
+              </button>
+            </div>
+
             {isLoading && <p>Loading stores...</p>}
             {error && (
               <div className="bg-red-100 text-red-700 px-4 py-2 rounded">
@@ -558,6 +736,15 @@ function DashboardPage({ authUser }) {
           />
         )}
       </main>
+
+      {/* --- NEW: Render the modal --- */}
+      <AddStoreModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleAddStore}
+        isLoading={isSubmitting}
+        error={formError}
+      />
     </div>
   );
 }
@@ -576,7 +763,7 @@ export default function App() {
       const headers = new Headers();
       const credentials = btoa(`${email}:${password}`);
       headers.append("Authorization", `Basic ${credentials}`);
-      
+
       const response = await fetch(`${API_BASE_URL}/user/${email}/stores`, {
         method: "GET",
         headers: headers,
@@ -607,4 +794,3 @@ export default function App() {
 
   return <DashboardPage authUser={authUser} />;
 }
-
